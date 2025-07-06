@@ -1,0 +1,6 @@
+- Checkout
+- Run Gitleaks
+- Run Bandit
+- Run Trivy
+- Run pytest
+- Build & Push Docker image
