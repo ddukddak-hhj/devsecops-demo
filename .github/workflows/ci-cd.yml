@@ -39,7 +39,8 @@ jobs:
         sudo apt install -y wget
         wget https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.48.0_Linux-64bit.deb
         sudo dpkg -i trivy_0.48.0_Linux-64bit.deb
-        trivy image ${{ secrets.DOCKER_USER }}/demo-app:latest
+        trivy image 
+        /demo-app:latest
 
     - name: Push to DockerHub
       run: |
