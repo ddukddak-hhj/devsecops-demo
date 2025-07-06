@@ -1,26 +1,32 @@
 name: CI/CD Pipeline
 
+# 워크플로우 트리거: main 브랜치에 푸시될 때 실행
 on:
   push:
     branches: [ main ]
 
 jobs:
+  # 첫 번째 잡: 앱 빌드 및 배포 처리
   build-and-deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  # GitHub에서 제공하는 Ubuntu 실행 환경 사용
 
     steps:
+    # 1. 소스 코드 체크아웃 (깃허브 리포지토리에서 코드 복사)
     - name: Checkout source code
       uses: actions/checkout@v4
 
+    # 2. 디버깅용 메시지 출력
     - name: Hello message
       run: echo "Hello World"
 
+    # 3. DockerHub 로그인 (시크릿 값 사용)
     - name: Login to DockerHub
       uses: docker/login-action@v2
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+    # 4. Docker 이미지 빌드 후 DockerHub에 푸시
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
       with:
@@ -28,35 +34,42 @@ jobs:
         push: true
         tags: ddukddak01/cicd-demo:latest
 
+    # 5. Python 실행 환경 설정 (버전 3.10)
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.10'
 
+    # 6. 의존성 패키지 설치 (requirements.txt와 pytest 포함)
     - name: Install dependencies
       run: pip install -r requirements.txt pytest
 
+    # 7. 단위 테스트 실행 (tests/ 디렉토리 대상)
     - name: Run pytest
       run: pytest tests/
 
+    # 8. 쿠버네티스 kubeconfig 설정 (base64로 인코딩된 값 디코딩)
     - name: Set up kubeconfig
       run: |
         mkdir -p $HOME/.kube
         echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
 
+    # 9. kubectl을 이용한 K8s 배포 (deployment.yaml 기준)
     - name: Deploy to Kubernetes with kubectl
       run: kubectl apply -f k8s/deployment.yaml
 
+    # 10. Slack으로 알림 전송 (Slack Webhook 사용)
     - name: Slack Notification
       uses: slackapi/slack-github-action@v1.23.0
       with:
         payload: |
           {
-            "text": "✅ CI/CD 완료: ${{ github.workflow }} - ${{ github.ref }} by ${{ github.actor }}"
+            "text": " CI/CD 완료: ${{ github.workflow }} - ${{ github.ref }} by ${{ github.actor }}"
           }
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
 
+    # 11. 이메일로 성공 알림 발송
     - name: Send Email Notification
       uses: dawidd6/action-send-mail@v3
       with:
@@ -64,29 +77,34 @@ jobs:
         server_port: 587
         username: ${{ secrets.EMAIL_USERNAME }}
         password: ${{ secrets.EMAIL_PASSWORD }}
-        subject: "✅ CI/CD Pipeline Success"
+        subject: " CI/CD Pipeline Success"
         body: |
           Workflow: ${{ github.workflow }}
           Ref: ${{ github.ref }}
           Actor: ${{ github.actor }}
           Status: Success
-        to: netadmin@example.com
+        to: hj.han@gtck.kr
         from: ${{ secrets.EMAIL_USERNAME }}
 
+  # 두 번째 잡: 보안 스캔 (Trivy & Gitleaks)
   trivy-scan:
     runs-on: ubuntu-latest
-    needs: build-and-deploy
+    needs: build-and-deploy  # build-and-deploy 잡이 성공한 후 실행됨
+
     steps:
+    # 1. 코드 체크아웃
     - name: Checkout source code
       uses: actions/checkout@v4
 
+    # 2. Trivy로 Docker 이미지 취약점 검사
     - name: Run Trivy vulnerability scan
       uses: aquasecurity/trivy-action@master
       with:
         image-ref: ddukddak01/cicd-demo:latest
         format: table
-        exit-code: 0
+        exit-code: 0  # 취약점이 있어도 워크플로우 실패 처리하지 않음
         vuln-type: 'os,library'
 
+    # 3. Gitleaks로 시크릿 누출 스캔
     - name: Run Gitleaks secret scan
       uses: gitleaks/gitleaks-action@v2
