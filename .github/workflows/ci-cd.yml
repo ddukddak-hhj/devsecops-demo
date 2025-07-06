@@ -12,8 +12,8 @@ jobs:
     - name: Checkout source code
       uses: actions/checkout@v4
 
-    - name: Example
-      uses: echo "Hello World"
+    - name: Hello message
+      run: echo "Hello World"
 
     - name: Login to DockerHub
       uses: docker/login-action@v2
@@ -52,6 +52,7 @@ jobs:
 
     - name: Set up kubeconfig
       run: |
+        mkdir -p $HOME/.kube
         echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
 
     - name: Deploy to Kubernetes with kubectl
@@ -62,7 +63,7 @@ jobs:
       with:
         payload: |
           {
-            "text": "CI/CD 완료: ${{ github.workflow }} - ${{ github.ref }} by ${{ github.actor }}"
+            "text": "✅ CI/CD 완료: ${{ github.workflow }} - ${{ github.ref }} by ${{ github.actor }}"
           }
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
